@@ -24,6 +24,10 @@ function wa_bot_enqueue_assets() {
 
     wp_enqueue_script('wa-bootstrap-js', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js', ['jquery'], '5.3.2', true);
     wp_enqueue_script('wa-bot-script', WA_BOT_MANAGER_URL . 'js/wa-bot-manager.js', ['jquery'], WA_BOT_MANAGER_VERSION, true);
+
+    wp_localize_script('wa-bot-script', 'waBotManager', [
+        'ajaxurl' => admin_url('admin-ajax.php')
+    ]);
 }
 
 // Shortcode base
@@ -43,6 +47,8 @@ add_action('init', 'wa_bot_handle_etapa_submission');
 error_log(print_r($_FILES['audios'], true));
 
 function wa_bot_handle_etapa_submission() {
+    $is_ajax = (defined('DOING_AJAX') && DOING_AJAX) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
+
     if (!isset($_POST['wa_etapa_nonce']) || !wp_verify_nonce($_POST['wa_etapa_nonce'], 'guardar_etapa')) return;
     if (!is_user_logged_in()) return;
 
@@ -50,26 +56,48 @@ function wa_bot_handle_etapa_submission() {
     global $wpdb;
 
     $nombre_raw = sanitize_text_field($_POST['etapa_nombre']);
-    $nombre = strtolower(trim(preg_replace('/\s+/', '_', $nombre_raw)));
+    $nombre = wa_sanitize_slug($nombre_raw);
+
+    $etapa_existente = $wpdb->get_var(
+        $wpdb->prepare(
+          "SELECT COUNT(*) FROM wa_bot_etapas WHERE user_id = %d AND nombre = %s",
+          $user_id, $nombre
+        )
+      );
+      
+      if ($etapa_existente > 0) {
+        if ($is_ajax) {
+            wp_send_json_error('⚠️ Ya existe una etapa con ese nombre. Por favor elige otro diferente.');
+        } else {
+            wp_die('⚠️ Ya existe una etapa con ese nombre. Por favor elige otro diferente.');
+        }          
+      }      
     
     $descripcion = sanitize_textarea_field($_POST['etapa_descripcion']);
     $textos = array_filter(array_map('sanitize_text_field', $_POST['textos']));
     $textos_html = array_filter(array_map('wp_kses_post', $_POST['textos_html']));
 
     if (!$nombre || count($textos) < 1 || count($textos_html) < 1) {
-        wp_die('Faltan campos requeridos.');
-    }
+        $msg = 'Faltan campos requeridos.';
+        if ($is_ajax) wp_send_json_error($msg);
+        else wp_die($msg);
+    }    
 
     // Subir imagen
     $imagen_path = null;
     if (!empty($_FILES['etapa_imagen']['tmp_name'])) {
         if ($_FILES['etapa_imagen']['size'] > 1048576) {
-            wp_die('La imagen excede 1MB.');
+            $msg = 'La imagen excede 1MB.';
+            if ($is_ajax) wp_send_json_error($msg);
+            else wp_die($msg);
         }
+        
         $ext = pathinfo($_FILES['etapa_imagen']['name'], PATHINFO_EXTENSION);
         if (!in_array(strtolower($ext), ['jpg', 'jpeg', 'png'])) {
-            wp_die('Formato de imagen no válido.');
-        }
+            $msg = 'Formato de imagen no válido.';
+            if ($is_ajax) wp_send_json_error($msg);
+            else wp_die($msg);
+        }        
 
         $imagen_filename = "{$user_id}_{$nombre}." . $ext;
         $imagen_path = "/home/whatsapp-audio-bot/imagenes_etapa/{$user_id}_{$nombre}." . $ext;
@@ -96,7 +124,11 @@ function wa_bot_handle_etapa_submission() {
     $audios_subidos = 0;
 
     if (!isset($_FILES['audios'])) {
-        wp_die('No se encontraron archivos de audio en la solicitud.');
+        if ($is_ajax) {
+            wp_send_json_error('No se encontraron archivos de audio en la solicitud.');
+        } else {
+            wp_die('No se encontraron archivos de audio en la solicitud.');
+        }              
     }
 
     foreach ($_FILES['audios']['tmp_name'] as $i => $tmp_name) {
@@ -131,9 +163,50 @@ function wa_bot_handle_etapa_submission() {
 
     if ($audios_subidos === 0) {
         $wpdb->delete('wa_bot_etapas', ['id' => $etapa_id]);
-        wp_die('Debes subir al menos 1 audio válido (MP3, máx. 2MB).');
+        $msg = 'Debes subir al menos 1 audio válido (MP3, máx. 2MB).';
+        if ($is_ajax) wp_send_json_error($msg);
+        else wp_die($msg);
+    }    
+
+    if ($is_ajax) {
+        wp_send_json_success('Etapa guardada correctamente.');
+    } else {
+        wp_redirect(add_query_arg('wa_etapa_status', 'ok', wp_get_referer()));
+        exit;
+    }
+    
+}
+
+
+function wa_sanitize_slug($string) {
+    $string = strtolower(trim($string));
+    $string = iconv('UTF-8', 'ASCII//TRANSLIT', $string);
+    $string = preg_replace('/[^a-z0-9_]/', '_', $string);
+    $string = preg_replace('/_+/', '_', $string); // evita ___
+    return trim($string, '_');
+}
+
+add_action('wp_ajax_wa_check_etapa_existente', 'wa_check_etapa_existente');
+function wa_check_etapa_existente() {
+    if (!is_user_logged_in()) {
+        wp_send_json_error('No autorizado');
     }
 
-    wp_redirect(add_query_arg('wa_etapa_status', 'ok', wp_get_referer()));
-    exit;
+    global $wpdb;
+    $user_id = get_current_user_id();
+    $nombre = isset($_POST['nombre']) ? sanitize_text_field($_POST['nombre']) : '';
+
+    // Normalizar igual que en PHP
+    $nombre = wa_sanitize_slug($nombre);
+
+    $existe = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM wa_bot_etapas WHERE user_id = %d AND nombre = %s",
+        $user_id, $nombre
+    ));
+
+    if ($existe > 0) {
+        wp_send_json_success(['existe' => true]);
+    } else {
+        wp_send_json_success(['existe' => false]);
+    }
 }
