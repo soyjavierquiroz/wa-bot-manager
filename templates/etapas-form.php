@@ -60,5 +60,5 @@ $current_user_id = get_current_user_id();
     <button type="submit" class="btn btn-primary">Guardar etapa</button>
   </form>
 
-  <div id="wa-form-mensaje" class="mt-4"></div>
+   <div id="wa-form-mensaje" class="mt-4"></div>
 </div>

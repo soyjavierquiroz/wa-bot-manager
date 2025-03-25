@@ -25,6 +25,8 @@ function wa_bot_enqueue_assets() {
     wp_enqueue_script('wa-bootstrap-js', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js', ['jquery'], '5.3.2', true);
     wp_enqueue_script('wa-bot-script', WA_BOT_MANAGER_URL . 'js/wa-bot-manager.js', ['jquery'], WA_BOT_MANAGER_VERSION, true);
 
+    wp_enqueue_style('bootstrap-icons', 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css');
+
     wp_localize_script('wa-bot-script', 'waBotManager', [
         'ajaxurl' => admin_url('admin-ajax.php')
     ]);
@@ -118,6 +120,8 @@ function wa_bot_handle_etapa_submission() {
     ]);
 
     $etapa_id = $wpdb->insert_id;
+    error_log("🧪 Insert ID de etapa: $etapa_id");
+
 
     // Subir audios
     $audio_dir = "/home/whatsapp-audio-bot/audios_pregrabados/";
@@ -131,20 +135,31 @@ function wa_bot_handle_etapa_submission() {
         }              
     }
 
+    $orden_actual = 1;
+
+    $audios_subidos = 0;
+
     foreach ($_FILES['audios']['tmp_name'] as $i => $tmp_name) {
-        if (!$tmp_name) continue;
-
-        $size = $_FILES['audios']['size'][$i];
-        if ($size > 2 * 1024 * 1024) continue;
-
-        $filename = $_FILES['audios']['name'][$i];
-        $ext = pathinfo($filename, PATHINFO_EXTENSION);
-        $type = mime_content_type($tmp_name);
-
-        if (strtolower($ext) !== 'mp3' || !in_array($type, ['audio/mpeg', 'audio/mp3'])) {
+        if (!$tmp_name || !is_uploaded_file($tmp_name)) {
             continue;
         }
 
+        $filename = $_FILES['audios']['name'][$i];
+        $size = $_FILES['audios']['size'][$i];
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        // Validaciones
+        if ($ext !== 'mp3') {
+            error_log("Archivo omitido por extensión inválida: $filename");
+            continue;
+        }
+
+        if ($size > 2 * 1024 * 1024) {
+            error_log("Archivo omitido por tamaño: $filename");
+            continue;
+        }
+
+        // Evita fallo por mime_type inconsistente en algunos servidores
         $nombre_archivo = "{$user_id}_{$nombre}_" . ($i + 1) . ".mp3";
         $destino = $audio_dir . $nombre_archivo;
 
@@ -152,7 +167,7 @@ function wa_bot_handle_etapa_submission() {
             $wpdb->insert('wa_bot_audios', [
                 'user_id' => $user_id,
                 'etapa_id' => $etapa_id,
-                'nombre_archivo' => $nombre_archivo,
+                'archivo' => $nombre_archivo,
                 'orden' => $i + 1
             ]);
             $audios_subidos++;
@@ -160,6 +175,8 @@ function wa_bot_handle_etapa_submission() {
             error_log("❌ Falló al mover audio a: " . $destino);
         }
     }
+
+    
 
     if ($audios_subidos === 0) {
         $wpdb->delete('wa_bot_etapas', ['id' => $etapa_id]);
@@ -209,4 +226,12 @@ function wa_check_etapa_existente() {
     } else {
         wp_send_json_success(['existe' => false]);
     }
+}
+
+add_shortcode('wa_bot_listado', 'wa_bot_render_listado_etapas');
+
+function wa_bot_render_listado_etapas() {
+    ob_start();
+    include WA_BOT_MANAGER_PATH . 'templates/etapas-listado.php';
+    return ob_get_clean();
 }
