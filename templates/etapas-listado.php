@@ -1,5 +1,8 @@
 <?php
-if (!is_user_logged_in()) return;
+if (!is_user_logged_in()) {
+  echo '<div class="alert alert-warning">Debes iniciar sesión para ver tus etapas.</div>';
+  return;
+}
 
 global $wpdb;
 $user_id = get_current_user_id();
@@ -7,116 +10,106 @@ $user_id = get_current_user_id();
 $etapas = $wpdb->get_results(
   $wpdb->prepare("SELECT * FROM wa_bot_etapas WHERE user_id = %d ORDER BY created_at DESC", $user_id)
 );
-
-if (!$etapas) {
-  echo '<div class="alert alert-info">No has creado ninguna etapa todavía.</div>';
-  return;
-}
 ?>
 
-<h3 class="mb-4">Tus etapas creadas</h3>
+<div class="container my-5">
+  <h2 class="mb-4">Mis Etapas</h2>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-  <?php foreach ($etapas as $etapa): 
-    $slug = esc_html($etapa->nombre);
-    $textos = json_decode($etapa->textos ?? '[]');
-
-    $imagen_url = null;
-    if (!empty($etapa->imagen)) {
-      $archivo = basename($etapa->imagen);
-      $imagen_url = site_url("/bot-media/imagenes/{$archivo}");
-    }
-
-    $audios = $wpdb->get_results(
-      $wpdb->prepare("SELECT * FROM wa_bot_audios WHERE user_id = %d AND etapa_id = %d ORDER BY orden ASC", $user_id, $etapa->id)
-    );
-  ?>
-  <div class="col">
-    <div class="card h-100 shadow-sm">
-      <?php if ($imagen_url): ?>
-        <img src="<?php echo esc_url($imagen_url); ?>" class="card-img-top" alt="Imagen de etapa">
-      <?php endif; ?>
-      <div class="card-body">
-        <h5 class="card-title"><?php echo esc_html($etapa->nombre); ?></h5>
-        <?php if ($etapa->descripcion): ?>
-          <p class="card-text"><?php echo esc_html($etapa->descripcion); ?></p>
-        <?php endif; ?>
-        <?php if (!empty($textos)): ?>
-          <ul class="list-group list-group-flush mb-2">
-            <?php foreach ($textos as $txt): ?>
-              <li class="list-group-item small"><?php echo esc_html($txt); ?></li>
-            <?php endforeach; ?>
-          </ul>
-        <?php endif; ?>
-
-        <?php if ($audios): ?>
-          <div class="mt-2">
-            <strong>Audios:</strong>
-            <?php foreach ($audios as $index => $a): 
-              $audio_url = site_url('/bot-media/audios/' . urlencode($a->archivo));
-            ?>
-              <div class="mb-2 d-flex justify-content-between align-items-center border-bottom pb-2">
-                <span><strong>Audio <?php echo $index + 1; ?></strong></span>
-                <button 
-                  type="button"
-                  class="btn btn-outline-primary btn-sm play-audio-btn" 
-                  data-bs-toggle="modal" 
-                  data-bs-target="#audioModal"
-                  data-audio-url="<?php echo esc_url($audio_url); ?>">
-                  <i class="bi bi-play-circle"></i> Reproducir
+  <?php if (empty($etapas)): ?>
+    <div class="alert alert-info">Aún no has creado etapas.</div>
+  <?php else: ?>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Fecha</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($etapas as $etapa): ?>
+            <tr data-etapa-id="<?php echo esc_attr($etapa->id); ?>">
+              <td><?php echo esc_html($etapa->nombre); ?></td>
+              <td><?php echo esc_html(wp_trim_words($etapa->descripcion, 10)); ?></td>
+              <td><?php echo date('d M Y H:i', strtotime($etapa->created_at)); ?></td>
+              <td class="text-end">
+                <a href="<?php echo esc_url(site_url('/ver-etapa/?etapa_id=' . $etapa->id)); ?>" class="btn btn-sm btn-outline-secondary me-1">
+                  <i class="bi bi-eye"></i> Ver
+                </a>
+                <a href="<?php echo esc_url(site_url('/crear-etapa/?editar_etapa=' . $etapa->id)); ?>" class="btn btn-sm btn-outline-primary me-1">
+                  <i class="bi bi-pencil"></i> Editar
+                </a>
+                <button class="btn btn-sm btn-outline-danger wa-eliminar-etapa-btn">
+                  <i class="bi bi-trash"></i> Eliminar
                 </button>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        <?php endif; ?>
-      </div>
-      <div class="card-footer text-muted small">
-        Creado el: <?php echo date('d M Y H:i', strtotime($etapa->created_at)); ?>
-      </div>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
     </div>
-  </div>
-  <?php endforeach; ?>
+  <?php endif; ?>
 </div>
 
-<!-- Modal global para reproducción de audio -->
-<div class="modal fade" id="audioModal" tabindex="-1" aria-labelledby="audioModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="audioModalLabel">Reproducir audio</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body text-center">
-        <audio id="modalAudioPlayer" controls style="width: 100%;">
-          <source id="modalAudioSource" src="" type="audio/mpeg">
-          Tu navegador no soporta el elemento de audio.
-        </audio>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Script para activar reproducción en la modal -->
+<!-- Script de eliminación vía AJAX -->
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    const audioModal = document.getElementById('audioModal');
-    const audioPlayer = document.getElementById('modalAudioPlayer');
-    const audioSource = document.getElementById('modalAudioSource');
+document.addEventListener('DOMContentLoaded', function () {
+  const deleteButtons = document.querySelectorAll('.wa-eliminar-etapa-btn');
 
-    document.querySelectorAll('.play-audio-btn').forEach(button => {
-      button.addEventListener('click', function () {
-        const audioUrl = this.getAttribute('data-audio-url');
-        audioSource.src = audioUrl;
-        audioPlayer.load();
-        setTimeout(() => {
-          audioPlayer.play();
-        }, 300); // pequeño delay para evitar bloqueo en algunos navegadores
+  deleteButtons.forEach(btn => {
+    btn.addEventListener('click', function () {
+      const row = btn.closest('tr');
+      const etapaId = row.dataset.etapaId;
+
+      if (!etapaId) return;
+
+      if (!confirm('¿Seguro que deseas eliminar esta etapa? Esta acción eliminará imagen y audios asociados.')) {
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Eliminando...';
+
+      fetch(waBotManager.ajaxurl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          action: 'wa_eliminar_etapa',
+          etapa_id: etapaId,
+          _wpnonce: '<?php echo wp_create_nonce("wa_eliminar_etapa_nonce"); ?>'
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          row.remove();
+
+          const alert = document.createElement('div');
+          alert.className = 'alert alert-success mt-3';
+          alert.innerText = '✅ Etapa eliminada exitosamente.';
+
+          const container = document.querySelector('.container');
+          container.prepend(alert);
+
+          setTimeout(() => alert.remove(), 5000); // Ocultar mensaje tras 5 seg
+        }
+        else {
+          alert('❌ ' + data.data);
+          btn.disabled = false;
+          btn.innerText = 'Eliminar';
+        }
+      })
+      .catch(() => {
+        alert('❌ Error al eliminar. Intenta de nuevo.');
+        btn.disabled = false;
+        btn.innerText = 'Eliminar';
       });
     });
-
-    audioModal.addEventListener('hidden.bs.modal', function () {
-      audioPlayer.pause();
-      audioPlayer.currentTime = 0;
-    });
   });
+});
 </script>
+

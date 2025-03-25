@@ -1,6 +1,6 @@
 # WA Bot Manager
 
-**Versión:** 1.3.0  
+**Versión:** 1.5.0  
 **Desarrollado por:** [Soy Javier Quiroz](https://github.com/SoyJavierQuiroz)  
 **Compatibilidad:** WordPress 5.0+ | Bootstrap 5 | Thrive Architect compatible
 
@@ -8,39 +8,47 @@
 
 ## 🧩 ¿Qué es este plugin?
 
-`wa-bot-manager` permite a usuarios registrados (vía MemberPress) **crear, editar y administrar etapas personalizadas** que alimentan un bot de WhatsApp llamado `whatsapp-audio-bot` (Node.js).  
-Todo desde un formulario amigable en el frontend, con validaciones, subida de archivos y almacenamiento en MySQL.
+`wa-bot-manager` permite a usuarios registrados (vía MemberPress) **crear, ver, editar y administrar etapas personalizadas** que alimentan un bot de WhatsApp llamado `whatsapp-audio-bot` (Node.js).  
+Todo desde el frontend mediante shortcodes, con validaciones, subida de archivos y control seguro desde base de datos.
 
 ---
 
 ## 🚀 Funcionalidades
 
-✅ Formulario vía shortcode `[wa_bot_etapas]`  
-✅ Crea etapas con:
-- Nombre único por usuario
-- Descripción (opcional)
-- Hasta 5 textos planos (1 requerido)
-- Hasta 5 textos enriquecidos (1 requerido)
-- 1 imagen JPG/PNG (opcional, máx. 1MB)
-- 1–5 audios MP3 (al menos 1 requerido, máx. 2MB c/u)
+### ✍️ Gestión de etapas desde el frontend:
+- **[wa_bot_etapas]** – Formulario para crear/editar etapa
+- **[wa_bot_listado]** – Tabla con tus etapas creadas (Ver / Editar / Eliminar)
+- **[wa_bot_ver_etapa]** – Vista de detalle de etapa por ID
 
-✅ Subida de archivos a carpetas del bot:  
-/home/whatsapp-audio-bot/imagenes_etapa/{user_id}{etapa}.jpg
-/home/whatsapp-audio-bot/audios_pregrabados/{user_id}{etapa}_{n}.mp3
+### 🧾 Cada etapa incluye:
+- Nombre único (por usuario)
+- Descripción opcional
+- Textos planos (hasta 5)
+- Textos enriquecidos (hasta 5)
+- Imagen JPG/PNG opcional (máx. 1MB)
+- Audios MP3 (1–5, máx. 2MB c/u)
+
+### 🔐 Validaciones y seguridad:
+- Nonces en cada acción
+- Verificación de propiedad del recurso
+- Verificación AJAX de nombres duplicados
+- Rollback automático si no se sube al menos 1 audio válido
+- Eliminación completa: base de datos y archivos físicos
+- Límite configurable de etapas por usuario (por defecto: 10)
+
+### 📂 Archivos se guardan en:
+/home/whatsapp-audio-bot/audios_pregrabados/{user_id}{slug}{n}.mp3
+/home/whatsapp-audio-bot/imagenes_etapa/{user_id}_{slug}.jpg
 
 pgsql
 Copiar
 Editar
 
-✅ Validación en tiempo real de nombres duplicados  
-✅ UX con Bootstrap 5 + Loader + Alertas AJAX  
-✅ Código robusto y seguro (sanitización, nonces, límites)
-
 ---
 
 ## 🗄️ Base de Datos
 
-### `wa_bot_etapas`
+### Tabla `wa_bot_etapas`
 ```sql
 CREATE TABLE wa_bot_etapas (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,7 +60,7 @@ CREATE TABLE wa_bot_etapas (
   imagen VARCHAR(255) DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-wa_bot_audios
+Tabla wa_bot_audios
 sql
 Copiar
 Editar
@@ -60,49 +68,27 @@ CREATE TABLE wa_bot_audios (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   etapa_id INT NOT NULL,
-  nombre_archivo VARCHAR(255) NOT NULL,
+  archivo VARCHAR(255) NOT NULL,
   orden INT DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-🔧 Requisitos del servidor
-PHP 7.4+
-
-WordPress con acceso a /wp-content/plugins
-
-Acceso de escritura a las rutas del bot:
-
-/home/whatsapp-audio-bot/audios_pregrabados
-
-/home/whatsapp-audio-bot/imagenes_etapa
-
-⚠️ Asegúrate de que el usuario PHP (ej. appku5709) tenga permisos de escritura en esas carpetas.
-
-☁️ Migración a otro servidor
-Copiar el plugin a /wp-content/plugins/wa-bot-manager
-
-Restaurar las tablas wa_bot_etapas y wa_bot_audios
-
-Crear y ajustar las carpetas del bot con permisos correctos
-
-Verificar que el docRoot en OpenLiteSpeed permita acceso desde PHP al sistema de archivos
-
-Si es necesario, crear symlinks en wp-content/uploads/bot_audios
-
-📦 Instalación
-Clonar el repo:
-
+☁️ Instalación
 bash
 Copiar
 Editar
 git clone https://github.com/SoyJavierQuiroz/wa-bot-manager.git wp-content/plugins/wa-bot-manager
-Activar el plugin desde el administrador de WordPress
+Activa el plugin desde WordPress
 
-Insertar el shortcode [wa_bot_etapas] en una página Thrive
+Crea 3 páginas y añade los shortcodes:
 
-🧪 Testing
-Este plugin ha sido probado con:
+/crear-etapa/ → [wa_bot_etapas]
 
-MemberPress (restricción de acceso)
+/ver-etapa/ → [wa_bot_ver_etapa]
+
+/mis-etapas/ → [wa_bot_listado]
+
+🧪 Probado con:
+MemberPress
 
 Thrive Architect
 
@@ -110,29 +96,33 @@ Bootstrap 5
 
 LiteSpeed + CyberPanel
 
-Node.js bot funcionando en /home/whatsapp-audio-bot/
+Node.js Bot (en producción)
 
-🛡️ Seguridad y Buenas Prácticas
-Nonces verificados en cada solicitud
+🛡️ Buenas Prácticas
+Archivos se eliminan si se borra la etapa
 
-Sanitización exhaustiva (sanitize_text_field, wp_kses_post, etc.)
+Nonces en AJAX
 
-Validaciones de MIME, tamaño y extensión de archivos
+Permisos de usuario controlados
 
-Rollback automático si no se sube al menos 1 audio
+Validación de extensión y tamaño de archivos
 
-Rutas personalizadas no expuestas al navegador
+Sanitización exhaustiva
 
-🔜 Próximas versiones
-Listado dinámico de etapas por usuario
+🆕 Mejoras en v1.5
+🔄 Reorganización completa en 3 páginas frontend
 
-Edición de etapas existentes
+✅ Edición completa con precarga de datos
 
-Borrado seguro con verificación
+🧹 Eliminación segura con validación y confirmación visual
 
-Webhook al bot tras guardar
+🔒 Verificación de propiedad de etapa
 
-Soporte multilenguaje
+💾 Control de límite por usuario (10 etapas)
 
-¿Dudas, sugerencias o pull requests? ¡Bienvenidos!
-Este plugin es parte de la arquitectura de automatización de whatsapp-audio-bot.
+🧼 Script extra para buscar archivos huérfanos
+
+🎧 Mejora en carga y gestión de audios existentes
+
+¿Pull requests, ideas o bugs?
+¡Bienvenidos!

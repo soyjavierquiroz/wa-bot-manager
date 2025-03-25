@@ -1,13 +1,115 @@
-/* Estilos personalizados para el plugin */
-.wa-form label {
-    font-weight: 500;
+/* General */
+.wa-form {
+  max-width: 720px;
+  margin: 0 auto;
 }
 
-.modal-backdrop.show {
-    z-index: 1040 !important;
+/* Labels destacadas */
+.wa-form label.form-label {
+  font-weight: 600;
+  color: #333;
+}
+
+/* Input más espaciado */
+.wa-form .form-control {
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Títulos de secciones */
+.wa-form h5 {
+  margin-top: 2rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #004d7a;
+}
+
+/* Mensajes del formulario */
+#wa-form-mensaje .alert {
+  font-size: 0.95rem;
+}
+
+/* Mini preview imagen */
+.wa-form img.img-thumbnail {
+  max-width: 150px;
+  border: 1px solid #ddd;
+}
+
+/* Listado de audios actuales */
+.wa-form .list-group-item {
+  font-size: 0.95rem;
+}
+
+/* Botón guardar */
+.wa-form button[type="submit"] {
+  min-width: 160px;
+}
+
+/* Tabla de listado */
+.table td, .table th {
+  vertical-align: middle;
+}
+
+/* Responsive tabla */
+@media (max-width: 767.98px) {
+  .table-responsive {
+    border: 0;
   }
-  
-  .modal {
-    z-index: 1050 !important;
+
+  .table thead {
+    display: none;
   }
-  
+
+  .table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .table td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    border: none;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: #666;
+  }
+
+  .text-end {
+    text-align: right !important;
+  }
+}
+
+/* Estilo para mensaje de éxito o error del formulario */
+#wa-form-mensaje .alert {
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#wa-form-mensaje .alert-success {
+  background-color: #e8f5e9;
+  color: #256029;
+  border: 1px solid #c8e6c9;
+}
+
+#wa-form-mensaje .alert-danger {
+  background-color: #fdecea;
+  color: #b71c1c;
+  border: 1px solid #f5c6cb;
+}
+
+#wa-form-mensaje .alert-warning {
+  background-color: #fff8e1;
+  color: #8a6d3b;
+  border: 1px solid #faebcc;
+}
+
