@@ -2,7 +2,7 @@
 /*
 Plugin Name: WA Bot Manager
 Description: Administra tus etapas personalizadas para el bot de WhatsApp basado en Node.js
-Version: 1.0.4
+Version: 1.6
 Author: Soy Javier Quiroz
 */
 
@@ -279,3 +279,21 @@ function wa_eliminar_etapa_handler() {
   wp_send_json_success('Etapa eliminada correctamente.');
 }
 
+// Menú de administrador para ver usuarios con etapas
+add_action('admin_menu', 'wa_bot_admin_menu');
+
+function wa_bot_admin_menu() {
+    add_menu_page(
+        'WA Bot Manager',
+        'WA Bot Manager',
+        'manage_options',
+        'wa-bot-manager-admin',
+        'wa_bot_admin_usuarios_page',
+        'dashicons-megaphone',
+        30
+    );
+}
+
+function wa_bot_admin_usuarios_page() {
+    include WA_BOT_MANAGER_PATH . 'admin/usuarios-etapas.php';
+}
