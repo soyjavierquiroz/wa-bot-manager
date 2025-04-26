@@ -31,7 +31,7 @@ if (isset($_GET['editar_etapa'])) {
     <div class="alert alert-success">✅ Etapa guardada correctamente.</div>
   <?php endif; ?>
 
-  <form id="wa-etapa-form" class="wa-form" enctype="multipart/form-data" method="post">
+  <form id="wa-etapa-form" method="post" enctype="multipart/form-data" class="wa-form">
     <?php if ($modo_editar): ?>
       <input type="hidden" name="etapa_id" value="<?php echo esc_attr($etapa->id); ?>">
     <?php endif; ?>
@@ -44,17 +44,23 @@ if (isset($_GET['editar_etapa'])) {
 
     <div class="mb-3">
       <label for="etapa_descripcion" class="form-label">Descripción</label>
-      <textarea class="form-control" id="etapa_descripcion" name="etapa_descripcion" rows="2"><?php
+      <textarea class="form-control" id="etapa_descripcion" name="etapa_descripcion" rows="6"><?php
         echo $modo_editar ? esc_textarea($etapa->descripcion) : ''; ?></textarea>
     </div>
 
     <div class="mb-3">
       <label for="etapa_imagen" class="form-label">Imagen <?php echo $modo_editar ? '(reemplazar actual)' : ''; ?> (JPG/PNG, máx. 1MB)</label>
       <input type="file" class="form-control" id="etapa_imagen" name="etapa_imagen" accept=".jpg,.jpeg,.png">
-      <?php if ($modo_editar && $etapa->imagen): ?>
-        <?php $archivo = basename($etapa->imagen); ?>
-        <img src="<?php echo esc_url(site_url('/bot-media/imagenes/' . $archivo)); ?>" class="img-thumbnail mt-2" width="150">
+      <?php if ($modo_editar && !empty($etapa->imagen)): ?>
+        <?php
+          $archivo = basename($etapa->imagen);
+          $url_imagen = site_url('/bot-media/imagenes/' . $archivo);
+        ?>
+        <div class="mt-2">
+          <img src="<?php echo esc_url($url_imagen); ?>" class="img-thumbnail" alt="Imagen actual" width="150">
+        </div>
       <?php endif; ?>
+
     </div>
 
     <hr>
@@ -73,7 +79,7 @@ if (isset($_GET['editar_etapa'])) {
     <?php for ($i = 0; $i < 5; $i++): ?>
       <div class="mb-3">
         <label for="texto_html_<?php echo $i + 1; ?>" class="form-label">Texto enriquecido <?php echo $i + 1; ?><?php echo $i === 0 ? ' *' : ''; ?></label>
-        <textarea class="form-control" id="texto_html_<?php echo $i + 1; ?>" name="textos_html[]" rows="2" <?php echo $i === 0 ? 'required' : ''; ?>><?php
+        <textarea class="form-control" id="texto_html_<?php echo $i + 1; ?>" name="textos_html[]" rows="10" <?php echo $i === 0 ? 'required' : ''; ?>><?php
           echo $modo_editar && isset($textos_html[$i]) ? esc_textarea($textos_html[$i]) : ''; ?></textarea>
       </div>
     <?php endfor; ?>

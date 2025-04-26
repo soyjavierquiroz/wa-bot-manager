@@ -35,10 +35,10 @@ $etapas = $wpdb->get_results(
               <td><?php echo esc_html(wp_trim_words($etapa->descripcion, 10)); ?></td>
               <td><?php echo date('d M Y H:i', strtotime($etapa->created_at)); ?></td>
               <td class="text-end">
-                <a href="<?php echo esc_url(site_url('/ver-etapa/?etapa_id=' . $etapa->id)); ?>" class="btn btn-sm btn-outline-secondary me-1">
+                <a href="<?php echo esc_url(add_query_arg('etapa_id', $etapa->id, site_url('/escritorio/contenidos/etapas/ver-etapa/'))); ?>" class="btn btn-sm btn-outline-secondary me-1">
                   <i class="bi bi-eye"></i> Ver
                 </a>
-                <a href="<?php echo esc_url(site_url('/crear-etapa/?editar_etapa=' . $etapa->id)); ?>" class="btn btn-sm btn-outline-primary me-1">
+                <a href="<?php echo esc_url(add_query_arg('editar_etapa', $etapa->id, site_url('/escritorio/contenidos/etapas/crear-etapa/'))); ?>" class="btn btn-sm btn-outline-primary me-1">
                   <i class="bi bi-pencil"></i> Editar
                 </a>
                 <button class="btn btn-sm btn-outline-danger wa-eliminar-etapa-btn">
@@ -112,4 +112,3 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
-
